@@ -18,9 +18,10 @@ const glass = {
 interface HomeViewProps {
   onCreateEvent: () => void
   onJoinEvent: (id: string) => void
+  onMyEvents: () => void
 }
 
-export default function HomeView({ onCreateEvent, onJoinEvent }: HomeViewProps) {
+export default function HomeView({ onCreateEvent, onJoinEvent, onMyEvents }: HomeViewProps) {
   const { isConnected } = useAccount()
   const [eventIdInput, setEventIdInput] = useState('')
   const { t } = useLang()
@@ -104,14 +105,23 @@ export default function HomeView({ onCreateEvent, onJoinEvent }: HomeViewProps) 
 
         {/* create event */}
         {isConnected && (
-          <button
-            onClick={onCreateEvent}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-semibold transition-opacity hover:opacity-90"
-            style={{ background: 'var(--accent)', color: 'white' }}
-          >
-            <Plus size={16} />
-            {t('createNewEvent')}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onCreateEvent}
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl py-4 text-sm font-semibold transition-opacity hover:opacity-90"
+              style={{ background: 'var(--accent)', color: 'white' }}
+            >
+              <Plus size={16} />
+              {t('createNewEvent')}
+            </button>
+            <button
+              onClick={onMyEvents}
+              className="flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-semibold transition-opacity hover:opacity-90"
+              style={{ background: 'rgba(18,45,69,0.10)', color: 'var(--ink)' }}
+            >
+              {t('myEvents')}
+            </button>
+          </div>
         )}
 
         {!isConnected && (

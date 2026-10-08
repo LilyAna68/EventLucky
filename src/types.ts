@@ -12,4 +12,4 @@ export interface CreateEventForm {
   prizes: PrizeTier[]
 }
 
-export type AppView = 'home' | 'create' | 'event' | 'result'
+export type AppView = 'home' | 'create' | 'event' | 'result' | 'myevents'

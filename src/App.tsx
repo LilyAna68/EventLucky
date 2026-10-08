@@ -2,6 +2,7 @@ import { useState } from 'react'
 import HomeView from '@/components/HomeView'
 import CreateEventView from '@/components/CreateEventView'
 import EventView from '@/components/EventView'
+import MyEventsView from '@/components/MyEventsView'
 import type { AppView } from '@/types'
 
 function getInitialEventId(): string | null {
@@ -39,5 +40,15 @@ export default function App() {
     return <EventView eventId={activeEventId} onBack={goHome} />
   }
 
-  return <HomeView onCreateEvent={goCreate} onJoinEvent={goEvent} />
+  if (view === 'myevents') {
+    return (
+      <MyEventsView
+        onBack={goHome}
+        onViewEvent={goEvent}
+        onCreateEvent={goCreate}
+      />
+    )
+  }
+
+  return <HomeView onCreateEvent={goCreate} onJoinEvent={goEvent} onMyEvents={() => setView('myevents')} />
 }
