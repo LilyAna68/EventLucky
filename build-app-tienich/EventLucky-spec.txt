@@ -1,0 +1,121 @@
+================================================================
+SPEC CHỐT -- EVENTLUCKY
+Ngày chốt: 08/10/2026
+================================================================
+
+TÊN APP
+-------
+EventLucky
+
+MÔ TẢ NGẮN
+-----------
+App tổ chức event tặng thưởng USDC trên Arc Network.
+Host tạo event, người chơi đoán số, quay số random onchain,
+người thắng nhận USDC qua email xác nhận -- không cần biết crypto.
+
+EMAIL SERVICE
+-------------
+Resend (free tier 3000 email/tháng)
+
+================================================================
+2 LOẠI NGƯỜI DÙNG
+================================================================
+
+HOST (người tạo event)
+- Ví: MetaMask HOẶC Circle social wallet (Google/Email) -- tự chọn
+- Việc làm: Tạo event, nạp USDC, quay số
+
+NGƯỜI CHƠI (người tham gia)
+- Ví: Circle social wallet (Google/Email) -- tạo tự động khi đăng nhập
+- Việc làm: Đăng ký số dự đoán, chờ kết quả, xác nhận nhận thưởng
+- Không cần biết crypto, không cần lưu seed phrase
+
+================================================================
+FLOW ĐẦY ĐỦ
+================================================================
+
+1. HOST TẠO EVENT
+   - Điền thông tin: tên event, range số (ví dụ 1-100)
+   - Cấu hình giải thưởng: số lượng giải + USDC mỗi giải
+     Ví dụ: 1 giải nhất (20 USDC), 2 giải nhì (10 USDC), 3 giải ba (5 USDC)
+   - Đặt deadline đăng ký
+   - USDC được LOCK vào smart contract ngay lúc tạo
+     (host không rút được cho đến khi event kết thúc)
+
+2. CHIA SẺ EVENT
+   - App tạo link event dạng: eventlucky.app/event/[id]
+   - Host chia sẻ link lên X/Twitter kèm thông báo
+
+3. NGƯỜI CHƠI ĐĂNG KÝ
+   - Vào link event
+   - Đăng nhập bằng Google hoặc Email (Circle social wallet tự tạo ngầm)
+   - Chọn số dự đoán trong range
+   - App ghi nhận: số + địa chỉ ví + email + timestamp
+
+4. HOST QUAY SỐ
+   - Host bấm "Quay số" trên app
+   - Random onchain -- minh bạch, không ai can thiệp được
+   - App xác định người thắng dựa trên dữ liệu đã đăng ký
+
+5. XỬ LÝ TRÙNG SỐ
+   - Nếu 2+ người cùng đoán đúng 1 số:
+     Lấy 2 người submit SỚM NHẤT (theo timestamp)
+     Chia thưởng theo tỷ lệ 6:4 (người submit trước nhận 60%)
+   - Nếu chỉ 1 người đoán đúng: nhận 100% giải đó
+
+6. GỬI MAIL KẾT QUẢ
+   - App gửi mail CHỈ CHO NGƯỜI THẮNG trong vòng 120 phút
+   - Mail từ domain cố định của app (không phải từ host)
+   - Nội dung: tên event + số tiền thắng + link xác nhận 1 lần dùng
+   - Mail thua cuộc: KHÔNG GỬI
+
+7. NGƯỜI THẮNG XÁC NHẬN
+   - Mở link trong mail, đăng nhập lại đúng tài khoản
+   - Trang hiện: tên event + số USDC sắp nhận (đối chiếu với X)
+   - Nhấn "Nhận thưởng" -- USDC vào ví Circle ngay
+   - Muốn rút ra ví khác: nhập địa chỉ ví, xác nhận PIN
+
+8. HẾT HẠN XÁC NHẬN
+   - Nếu quá 48h người thắng không xác nhận:
+     USDC hoàn về ví host tự động
+
+================================================================
+KẾT QUẢ & MINH BẠCH
+================================================================
+
+- Trang kết quả công khai đẹp để host share lên X
+  Hiển thị: số trúng thưởng, danh sách người thắng (ẩn email), số tiền
+- Link onchain explorer để bất kỳ ai verify được
+- Trang event hiển thị rõ: địa chỉ ví host + số USDC đã lock vào contract
+
+================================================================
+BẢO MẬT & CHỐNG SCAM
+================================================================
+
+- USDC lock vào contract từ đầu -- host không bùng được
+- Mail chỉ từ domain app, không qua DM/X
+- Link xác nhận 1 lần dùng, hết hạn sau 48h
+- App không bao giờ hỏi seed phrase hay private key
+- Người chơi tự đối chiếu kết quả trên trang public trước khi xác nhận
+
+================================================================
+TECH STACK DỰ KIẾN
+================================================================
+
+Frontend   : React + TypeScript + Tailwind CSS (Vite)
+Blockchain : Arc Testnet (USDC là native gas)
+Contract   : Solidity -- lock USDC, random onchain, giải ngân
+Wallet     : MetaMask/ConnectKit (host) + Circle User-Controlled Wallets (người chơi)
+Email      : Resend
+Backend    : Node/Bun (xử lý email, quản lý session)
+Chain      : Arc Testnet (default) -- deploy mainnet sau khi test xong
+
+================================================================
+GHI CHÚ
+================================================================
+
+- Build và test trên Arc Testnet trước
+- Không lưu private key hay seed phrase của người dùng
+- Mọi giao dịch USDC đều onchain, verify được
+
+================================================================
