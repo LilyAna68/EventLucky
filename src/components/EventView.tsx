@@ -148,7 +148,7 @@ export default function EventView({ eventId, onBack }: EventViewProps) {
 
   if (!evData) return null
 
-  const [host, evName, minNum, maxNum, regDeadline, revealDeadline, maxRegs, drawn, winningNumber, claimDeadline, totalPrize, regCount, exists] = evData
+  const [host, evName, minNum, maxNum, regDeadline, prizes, drawn, winningNumber, claimDeadline, exists, totalPrize] = evData
 
   if (!exists) {
     return (
@@ -252,7 +252,7 @@ export default function EventView({ eventId, onBack }: EventViewProps) {
               <span className="mono">1 – {maxNum.toString()}</span> {t('rangeLabel')}
             </span>
             <span className="flex items-center gap-1">
-              <Users size={12} /> {regCount.toString()} / {maxRegs.toString()}
+              <Users size={12} /> {prizes.length} {t('prizes')}
             </span>
           </div>
 
@@ -377,7 +377,7 @@ export default function EventView({ eventId, onBack }: EventViewProps) {
             eventId={eventId}
             canDraw={canDraw}
             drawn={drawn}
-            revealDeadline={revealDeadline}
+            revealDeadline={0n}
             regDeadline={regDeadline}
             claimDeadline={claimDeadline}
             onRefresh={() => { void refetchEvent(); void refetchWinner() }}
