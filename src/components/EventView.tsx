@@ -50,12 +50,13 @@ export default function EventView({ eventId, onBack }: EventViewProps) {
   }
 
   // read event data
-  const { data: evData, refetch: refetchEvent } = useReadContract({
+  const { data: evData, refetch: refetchEvent, isLoading: evLoading, isError: evError, error: evErrObj } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: EVENT_LUCKY_ABI,
     functionName: 'getEvent',
     args: [eventIdBig],
     chainId: ARC_TESTNET_CHAIN_ID,
+    query: { retry: 3, retryDelay: 2000 },
   })
 
   // check if player already registered
@@ -100,16 +101,52 @@ export default function EventView({ eventId, onBack }: EventViewProps) {
     }
   }, [claimSuccess]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!evData) {
+  if (evError || (!evData && !evLoading)) {
     return (
       <div className="relative min-h-dvh flex items-center justify-center" style={{ background: 'var(--bg-gradient)' }}>
-        <div className="text-center">
-          <div className="mb-3 text-3xl">...</div>
-          <p style={{ color: 'var(--muted)' }}>{t('loading')}</p>
+        <div className="rounded-2xl p-6 text-center mx-4" style={{ background: 'rgba(255,255,255,0.8)', maxWidth: 360 }}>
+          <div className="mb-3 text-3xl">⚠️</div>
+          <p className="font-semibold mb-2" style={{ color: 'var(--ink)' }}>
+            {t('errLoadEvent')}
+          </p>
+          <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>
+            Event ID: {eventId}
+            {evErrObj && <><br />{String(evErrObj.message).slice(0, 120)}</>}
+          </p>
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => { void refetchEvent() }}
+              className="rounded-xl px-4 py-2 text-sm font-semibold"
+              style={{ background: 'var(--accent)', color: 'white' }}
+            >
+              {t('retry')}
+            </button>
+            <button
+              onClick={onBack}
+              className="rounded-xl px-4 py-2 text-sm font-semibold"
+              style={{ background: 'rgba(18,45,69,0.08)', color: 'var(--ink)' }}
+            >
+              {t('back')}
+            </button>
+          </div>
         </div>
       </div>
     )
   }
+
+  if (!evData && evLoading) {
+    return (
+      <div className="relative min-h-dvh flex items-center justify-center" style={{ background: 'var(--bg-gradient)' }}>
+        <div className="text-center">
+          <div className="mb-3 text-3xl">⏳</div>
+          <p style={{ color: 'var(--muted)' }}>{t('loading')}</p>
+          <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>Event ID: {eventId}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!evData) return null
 
   const [host, evName, minNum, maxNum, regDeadline, revealDeadline, maxRegs, drawn, winningNumber, claimDeadline, totalPrize, regCount, exists] = evData
 
