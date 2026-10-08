@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { erc20Abi } from 'viem'
+import { erc20Abi, decodeEventLog } from 'viem'
 import { toast } from 'sonner'
 import { getUsdc, requireChain } from '@/onchain-facts'
 import { parseAmount } from '@/onchain-money'
@@ -137,10 +137,29 @@ export default function CreateEventView({ onBack, onCreated }: CreateEventViewPr
   // Watch createEvent success
   useEffect(() => {
     if (createSuccess && createReceipt && step === 'creating') {
-      const log = createReceipt.logs[0]
-      const eventId = log?.topics?.[1] ? BigInt(log.topics[1]).toString() : '0'
+      // Decode EventCreated log to get eventId correctly
+      // EventCreated(uint256 indexed eventId, address indexed host, string name, uint256 totalPrize)
+      let eventId = '0'
+      try {
+        for (const log of createReceipt.logs) {
+          try {
+            const decoded = decodeEventLog({
+              abi: EVENT_LUCKY_ABI,
+              eventName: 'EventCreated',
+              topics: log.topics,
+              data: log.data,
+            })
+            eventId = (decoded.args as { eventId: bigint }).eventId.toString()
+            break
+          } catch { /* not this log */ }
+        }
+      } catch {
+        // fallback: first indexed topic is eventId as uint256 (padded left)
+        const raw = createReceipt.logs[0]?.topics?.[1]
+        if (raw) eventId = BigInt(raw).toString()
+      }
       setStep('done')
-      toast.success('Event đã tạo thành công!')
+      toast.success(t('toastCreated'))
       setTimeout(() => onCreated(eventId), 800)
     }
   }, [createSuccess]) // eslint-disable-line react-hooks/exhaustive-deps
