@@ -50,6 +50,13 @@ export const EVENT_LUCKY_ABI = [
   },
   {
     type: 'function',
+    name: 'cancelEvent',
+    inputs: [{ name: 'eventId', type: 'uint256' }],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'cancelDraw',
     inputs: [{ name: 'eventId', type: 'uint256' }],
     outputs: [],

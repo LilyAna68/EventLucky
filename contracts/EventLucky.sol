@@ -259,6 +259,26 @@ contract EventLucky is ReentrancyGuard {
         emit EventCancelled(eventId);
     }
 
+    /// @notice Host cancels an event that has no registrations yet and has not been drawn.
+    ///         The locked USDC prize pool is returned to the host immediately.
+    function cancelEvent(uint256 eventId) external nonReentrant {
+        EventData storage ev = eventsById[eventId];
+        require(ev.exists, "event not found");
+        require(msg.sender == ev.host, "not host");
+        require(!ev.drawn, "already drawn");
+        require(ev.registrations.length == 0, "registrations exist");
+
+        uint256 refund = ev.escrowRemaining;
+        ev.escrowRemaining = 0;
+        ev.drawn = true;
+
+        if (refund > 0) {
+            require(usdc.transfer(ev.host, refund), "cancel transfer failed");
+        }
+
+        emit EventCancelled(eventId);
+    }
+
     function claim(uint256 eventId) external nonReentrant {
         EventData storage ev = eventsById[eventId];
         require(ev.exists, "event not found");

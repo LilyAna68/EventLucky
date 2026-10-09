@@ -3,8 +3,22 @@ import { serve } from 'bun'
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? ''
 const FROM_EMAIL = 'EventLucky <noreply@eventlucky.app>'
 
-// In-memory store (replace with DB in production)
+// In-memory stores (replace with DB in production)
 const playerRegistry: Map<string, { email: string; chosenNumber: number; eventId: string; playerAddress: string }[]> = new Map()
+
+interface WinnerRecord {
+  eventId: string
+  eventName: string
+  winningNumber: number
+  winnerAddress: string
+  winnerEmail: string
+  amount: string
+  claimUrl: string
+  txHash: string
+  notifiedAt: string
+}
+
+const winnersHistory: WinnerRecord[] = []
 
 async function sendEmail(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
@@ -28,7 +42,6 @@ serve({
   async fetch(req) {
     const url = new URL(req.url)
 
-    // CORS headers for local dev
     const headers = {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
@@ -40,52 +53,70 @@ serve({
       return new Response(null, { status: 204, headers })
     }
 
-    // POST /register-player
+    // ── POST /register-player ──────────────────────────────────────────
     if (req.method === 'POST' && url.pathname === '/register-player') {
       try {
-        const body = await req.json() as { eventId: string; playerAddress: string; email: string; chosenNumber: number }
+        const body = await req.json() as {
+          eventId: string; playerAddress: string; email: string; chosenNumber: number
+        }
         const { eventId, playerAddress, email, chosenNumber } = body
         if (!eventId || !playerAddress || !email || chosenNumber == null) {
           return new Response(JSON.stringify({ error: 'missing fields' }), { status: 400, headers })
         }
-
-        const key = eventId
-        const entries = playerRegistry.get(key) ?? []
-        // avoid duplicates
+        const entries = playerRegistry.get(eventId) ?? []
         if (!entries.find(e => e.playerAddress.toLowerCase() === playerAddress.toLowerCase())) {
           entries.push({ email, chosenNumber, eventId, playerAddress })
-          playerRegistry.set(key, entries)
+          playerRegistry.set(eventId, entries)
         }
-
         return new Response(JSON.stringify({ ok: true }), { status: 200, headers })
-      } catch (_err) {
+      } catch {
         return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers })
       }
     }
 
-    // POST /notify-winners  (called after draw event is detected)
+    // ── POST /notify-winners ───────────────────────────────────────────
     if (req.method === 'POST' && url.pathname === '/notify-winners') {
       try {
         const body = await req.json() as {
           eventId: string
-          eventName: string
+          eventName?: string
           winningNumber: number
           winners: { address: string; amount: string }[]
           claimDeadline: string
           claimUrl: string
+          txHash?: string
         }
-        const { eventId, eventName, winningNumber, winners, claimDeadline, claimUrl } = body
+        const { eventId, eventName = `Event #${body.eventId}`, winningNumber, winners, claimDeadline, claimUrl, txHash = '' } = body
 
         const entries = playerRegistry.get(eventId) ?? []
+        let notified = 0
 
         for (const winner of winners) {
           const entry = entries.find(e => e.playerAddress.toLowerCase() === winner.address.toLowerCase())
-          if (!entry) continue
+          const winnerEmail = entry?.email ?? ''
+
+          // Save to history regardless of whether we have email
+          winnersHistory.push({
+            eventId,
+            eventName,
+            winningNumber,
+            winnerAddress: winner.address,
+            winnerEmail,
+            amount: winner.amount,
+            claimUrl,
+            txHash,
+            notifiedAt: new Date().toISOString(),
+          })
+
+          if (!winnerEmail) {
+            console.log('[notify] No email found for winner', winner.address)
+            continue
+          }
 
           const html = `
             <div style="font-family: 'DM Sans', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #f9f9fc;">
               <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 4px 24px rgba(18,45,69,0.08);">
-                <h1 style="font-size: 24px; font-weight: 700; color: #122d45; margin: 0 0 8px;">Chuc mung! Ban da thang!</h1>
+                <h1 style="font-size: 24px; font-weight: 700; color: #122d45; margin: 0 0 8px;">🎉 Chúc mừng! Bạn đã thắng!</h1>
                 <p style="color: #6b6580; margin: 0 0 24px;">Sự kiện: <strong style="color: #122d45;">${eventName}</strong></p>
 
                 <div style="background: #f0fdf4; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
@@ -96,32 +127,45 @@ serve({
 
                 <a href="${claimUrl}"
                    style="display: block; text-align: center; background: #122d45; color: white; text-decoration: none; padding: 14px 24px; border-radius: 12px; font-weight: 600; font-size: 15px; margin-bottom: 16px;">
-                  Nhận thưởng ngay
+                  Nhận thưởng ngay →
                 </a>
 
-                <p style="color: #ba2b4c; font-size: 13px; text-align: center; margin: 0;">
-                  Hết hạn: ${claimDeadline}. Sau thời hạn tiền sẽ được hoàn về host.
+                <p style="color: #ba2b4c; font-size: 13px; text-align: center; margin: 0 0 16px;">
+                  ⏰ Hết hạn: <strong>${claimDeadline}</strong>. Sau thời hạn tiền sẽ được hoàn về host.
                 </p>
 
                 <hr style="border: none; border-top: 1px solid rgba(18,45,69,0.08); margin: 24px 0;" />
-                <p style="color: #8a849c; font-size: 12px; text-align: center; margin: 0;">
-                  Email này được gửi từ EventLucky. Link chỉ dành cho địa chỉ ví ${entry.playerAddress.slice(0, 6)}...${entry.playerAddress.slice(-4)}.
+                <p style="color: #8a849c; font-size: 12px; text-align: center; margin: 0 0 4px;">
+                  Kết quả được xác định onchain – minh bạch, không ai can thiệp được.
                 </p>
+                ${txHash ? `<p style="color: #8a849c; font-size: 11px; text-align: center; margin: 0;">
+                  Tx: ${txHash.slice(0, 10)}...${txHash.slice(-8)}
+                </p>` : ''}
               </div>
             </div>
           `
 
-          await sendEmail(entry.email, `EventLucky: Ban da thang ${winner.amount} USDC!`, html)
+          await sendEmail(winnerEmail, `🎉 EventLucky: Bạn đã thắng ${winner.amount} USDC!`, html)
+          notified++
         }
 
-        return new Response(JSON.stringify({ ok: true, notified: winners.length }), { status: 200, headers })
+        return new Response(JSON.stringify({ ok: true, notified, saved: winners.length }), { status: 200, headers })
       } catch (err) {
         console.error('[notify-winners]', err)
         return new Response(JSON.stringify({ error: 'internal error' }), { status: 500, headers })
       }
     }
 
-    // GET /health
+    // ── GET /winners-history?eventId=X ────────────────────────────────
+    if (req.method === 'GET' && url.pathname === '/winners-history') {
+      const eventId = url.searchParams.get('eventId')
+      const results = eventId
+        ? winnersHistory.filter(r => r.eventId === eventId)
+        : winnersHistory
+      return new Response(JSON.stringify({ ok: true, history: results }), { status: 200, headers })
+    }
+
+    // ── GET /health ───────────────────────────────────────────────────
     if (url.pathname === '/health') {
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers })
     }

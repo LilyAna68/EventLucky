@@ -3,6 +3,7 @@ import HomeView from '@/components/HomeView'
 import CreateEventView from '@/components/CreateEventView'
 import EventView from '@/components/EventView'
 import MyEventsView from '@/components/MyEventsView'
+import WinnersHistoryView from '@/components/WinnersHistoryView'
 import type { AppView } from '@/types'
 
 function getInitialEventId(): string | null {
@@ -46,8 +47,13 @@ export default function App() {
         onBack={goHome}
         onViewEvent={goEvent}
         onCreateEvent={goCreate}
+        onHistory={() => setView('history')}
       />
     )
+  }
+
+  if (view === 'history') {
+    return <WinnersHistoryView onBack={() => setView('myevents')} />
   }
 
   return <HomeView onCreateEvent={goCreate} onJoinEvent={goEvent} onMyEvents={() => setView('myevents')} />
